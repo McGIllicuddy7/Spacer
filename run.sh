@@ -1,1 +1,1 @@
-./SpacerEditor
+open Spacer.uproject
