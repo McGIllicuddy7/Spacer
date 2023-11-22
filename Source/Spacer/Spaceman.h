@@ -36,10 +36,31 @@ public:
 	FVector GetPhysVelocity();
 	UFUNCTION(BlueprintCallable, BlueprintPure)
 	FVector GetPhysAcceleration();
+	UFUNCTION(BlueprintCallable)
+	void MoveDirectlyToPoint(FVector location);
+	UFUNCTION(BlueprintCallable)
+	void CancelMovement();
+	UFUNCTION(BlueprintCallable,BlueprintPure)
+	bool IsMovingToLocation();
+	UPROPERTY(BlueprintReadWrite,EditAnywhere)
+	float JetpackAcceleration =1400;
+	UFUNCTION(BlueprintCallable)
+	void JetpackMovementInput(FVector Direction,float magnitude);
+	UPROPERTY(BlueprintReadWrite,EditAnywhere)
+	float fuel = 100;
+	UPROPERTY(BlueprintReadWrite,EditAnywhere)
+	float fuelConsumptionRate = 1;
+	UPROPERTY(BlueprintReadWrite,EditAnywhere)
+	bool damped = true;
 private:
 	FVector physvelocity;
 	FVector physacceleration;
 	double mass = 100;
-	bool damped = true;
 	TArray<impulse_t> imps;
+	void PhysicsMovementHandling(float DeltaTime);
+	void DirectedMovementHandling(float DeltaTime);
+	FVector MoveToLocation;
+	FVector MoveToStart;
+	bool ShouldMoveTo;
+	void JetpackAccelerationCallback(FVector deltav);
 };

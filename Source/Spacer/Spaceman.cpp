@@ -20,12 +20,8 @@ void ASpaceman::BeginPlay()
 	Super::BeginPlay();
 	
 }
-
-// Called every frame
-void ASpaceman::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-	for(int i = 0; i<imps.Num(); i++){
+void ASpaceman::PhysicsMovementHandling(float DeltaTime){
+		for(int i = 0; i<imps.Num(); i++){
 		physacceleration+= imps[i].Force;
 		imps[i].remaining_time-=DeltaTime;
 		if(imps[i].remaining_time <=0){
@@ -62,11 +58,12 @@ void ASpaceman::Tick(float DeltaTime)
 	else{
 		SetActorLocation(new_loc);
 	}
-	if(accelerated){
+	if(accelerated&& damped){
 		if(physvelocity.Size()!= 0){
 			FVector dv = physvelocity;
 			dv.Normalize();
-			physvelocity -=dv*DeltaTime*900;
+			physvelocity -=dv*DeltaTime*JetpackAcceleration;
+			JetpackAccelerationCallback(dv*DeltaTime*JetpackAcceleration);
 			if(physvelocity.Size()>0){
 				FVector f = physvelocity;
 				f.Normalize();
@@ -76,6 +73,31 @@ void ASpaceman::Tick(float DeltaTime)
 			}
 		}
 	}
+	else if(!damped){
+		if(hit){
+			physvelocity += result.Normal*50;
+			physvelocity/=2;
+		}
+	}
+}
+void ASpaceman::JetpackAccelerationCallback(FVector deltav){
+	double f = deltav.Size();
+	f /= 36000*fuelConsumptionRate;
+	fuel -= f*GetWorld()->DeltaTimeSeconds;
+}
+void ASpaceman::DirectedMovementHandling(float DeltaTime){
+	
+}
+void ASpaceman::JetpackMovementInput(FVector Direction,float magnitude){
+	this->AddPhysForce(Direction*magnitude*JetpackAcceleration*100);
+	JetpackAccelerationCallback(this->physvelocity*Direction.Size()*magnitude*JetpackAcceleration);
+}
+// Called every frame
+void ASpaceman::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+	DirectedMovementHandling(DeltaTime);
+	PhysicsMovementHandling(DeltaTime);
 }
 
 // Called to bind functionality to input
@@ -96,4 +118,16 @@ FVector ASpaceman:: GetPhysVelocity(){
 }
 FVector ASpaceman::GetPhysAcceleration(){
 	return physacceleration;
+}
+
+void ASpaceman::MoveDirectlyToPoint(FVector location){
+
+}
+
+void ASpaceman::CancelMovement(){
+
+}
+
+bool ASpaceman::IsMovingToLocation(){
+	return false;
 }
