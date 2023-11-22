@@ -1,0 +1,16 @@
+{
+	"FileVersion": 3,
+	"EngineAssociation": "{00049E0C-08DB-BCE3-AA44-45E25D04261F}",
+	"Category": "",
+	"Description": "",
+	"Modules": [
+		{
+			"Name": "Spacer",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"AdditionalDependencies": [
+				"Engine"
+			]
+		}
+	]
+}
