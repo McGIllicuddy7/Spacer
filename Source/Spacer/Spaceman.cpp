@@ -1,9 +1,10 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
  	
-
-#include "Kismet/KismetSystemLibrary.h"
 #include "Spaceman.h"
+#include "Kismet/KismetSystemLibrary.h"
+#include "GameFramework/CharacterMovementComponent.h"
+
 
 
 // Sets default values
@@ -11,6 +12,7 @@ ASpaceman::ASpaceman()
 {
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
+	ShouldUseIk = false;
 
 }
 
@@ -18,10 +20,18 @@ ASpaceman::ASpaceman()
 void ASpaceman::BeginPlay()
 {
 	Super::BeginPlay();
-	
+	// UCharacterMovementComponent*
+	auto MovementComponent = GetCharacterMovement();
+	gravity = MovementComponent->GetGravityZ()>0;
+	if(gravity){
+		bUseControllerRotationPitch = false;
+	}
 }
 void ASpaceman::PhysicsMovementHandling(float DeltaTime){
-		for(int i = 0; i<imps.Num(); i++){
+	if(gravity){
+		return;
+	}
+	for(int i = 0; i<imps.Num(); i++){
 		physacceleration+= imps[i].Force;
 		imps[i].remaining_time-=DeltaTime;
 		if(imps[i].remaining_time <=0){
@@ -30,9 +40,9 @@ void ASpaceman::PhysicsMovementHandling(float DeltaTime){
 		}
 	}	
 	physvelocity += physacceleration*DeltaTime;
-	if(physvelocity.Size()>700){
+	if(physvelocity.Size()>MaxVelocity){
 		physvelocity.Normalize();
-		physvelocity*= 700;
+		physvelocity*= MaxVelocity;
 	}
 	bool accelerated = physacceleration == (FVector){0,0,0};
 	physacceleration = {0,0,0};
@@ -86,7 +96,52 @@ void ASpaceman::JetpackAccelerationCallback(FVector deltav){
 	fuel -= f*GetWorld()->DeltaTimeSeconds;
 }
 void ASpaceman::DirectedMovementHandling(float DeltaTime){
-	
+	if(!ShouldMoveTo){
+		if(ShouldHalt){
+			if(GetPhysVelocity().Size()>100){
+				FVector dv = GetPhysVelocity();
+				dv.Normalize();
+				PhysMovementInput(dv,-1);
+			}
+			else if(GetPhysVelocity().Size()>0){
+
+			}
+			else{
+				ShouldHalt = false;
+				FinishedMovingToLocation();
+			}
+
+		}
+		return;
+	}
+	FVector dv = MoveToLocation-GetActorLocation();
+	float dist = FVector::Dist(GetActorLocation(),MoveToLocation);
+	float v = GetPhysVelocity().Size();
+	float a = JetpackAcceleration;
+	if(dist<100){
+		ShouldMoveTo = false;
+		ShouldHalt = true;
+		return;
+	}
+	dv.Normalize();
+	if(v<1){
+		PhysMovementInput(dv,1);
+		return;
+	}
+	//d = 1/2at^2+vt
+	//0 = 1/2at^2+vt-d
+	// t = -v+/-sqrt(v^2-4*1/2a*-d)/a by the quadtratic formula
+	// t = -v+sqrt(v^2+2ad)/a
+	float ttia = (-v+sqrtf(v*v+2*a*dist))/a; //time to impact speeding up
+	float ttis = (-v+sqrtf(v*v-2*a*dist))/-a;//time to impact slowing down
+	if(ttis>v/a){
+		ShouldMoveTo = false;
+		ShouldHalt = true;
+	}
+	else{
+		PhysMovementInput(dv,1);
+	}
+
 }
 void ASpaceman::JetpackMovementInput(FVector Direction,float magnitude){
 	this->AddPhysForce(Direction*magnitude*JetpackAcceleration*100);
@@ -97,13 +152,14 @@ void ASpaceman::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 	DirectedMovementHandling(DeltaTime);
+	RotationHandling(DeltaTime);
 	PhysicsMovementHandling(DeltaTime);
 }
 
 // Called to bind functionality to input
 void ASpaceman::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
-	Super::SetupPlayerInputComponent(PlayerInputComponent);
+	Super::SetupPlayerInputComponent(PlayerInputComponent);	
 }
 
 void ASpaceman::AddPhysForce(FVector Force){
@@ -121,13 +177,63 @@ FVector ASpaceman::GetPhysAcceleration(){
 }
 
 void ASpaceman::MoveDirectlyToPoint(FVector location){
-
+	ShouldMoveTo = true;
+	MoveToLocation = location;
+	MoveToStart = GetActorLocation();
 }
 
 void ASpaceman::CancelMovement(){
-
+	ShouldMoveTo = false;
 }
 
 bool ASpaceman::IsMovingToLocation(){
-	return false;
+	return ShouldMoveTo;
+}
+void ASpaceman::PhysMovementInput(FVector Direction, float magnitude){
+	if(gravity){
+		AddMovementInput(Direction, magnitude);
+	}
+	else{
+		JetpackMovementInput(Direction, magnitude);	
+	}
+
+}
+void ASpaceman::PhysPitchInput(float magnitude){
+	if(gravity){
+		AddControllerPitchInput(-magnitude);
+	}
+	else{
+		AddActorLocalRotation({magnitude,0,0},false);
+	}
+
+}
+
+void ASpaceman::PhysYawInput(float magnitude){	
+	if(gravity){
+		AddControllerYawInput(magnitude);
+	}
+	else{
+		AddActorLocalRotation({0,magnitude,0},false);	
+	}
+
+}
+
+void ASpaceman::PhysRollInput(float magnitude){
+	if(gravity){
+		return;
+	}
+	else{
+		AddActorLocalRotation({0,0,magnitude},false);
+	}
+}
+void ASpaceman::RotationHandling(float DeltaTime){
+	if(!ShouldRotateTo){
+		return;
+	}
+	FRotator R = FMath::RInterpTo(GetActorRotation(), TargetRotation, DeltaTime, RotationSpeed);
+	SetActorRotation(R);
+}
+void ASpaceman::RotateTo(FRotator Rot){
+	ShouldRotateTo = true;
+	TargetRotation = Rot;
 }

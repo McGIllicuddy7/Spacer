@@ -42,16 +42,45 @@ public:
 	void CancelMovement();
 	UFUNCTION(BlueprintCallable,BlueprintPure)
 	bool IsMovingToLocation();
+	UFUNCTION(BlueprintImplementableEvent)
+	void FinishedMovingToLocation();
 	UPROPERTY(BlueprintReadWrite,EditAnywhere)
 	float JetpackAcceleration =1400;
+	UPROPERTY(BlueprintReadWrite,EditAnywhere)
+	float MaxVelocity = 800;
 	UFUNCTION(BlueprintCallable)
 	void JetpackMovementInput(FVector Direction,float magnitude);
+	UFUNCTION(BlueprintCallable)
+	void PhysMovementInput(FVector Direction, float magnitude);
+	UFUNCTION(BlueprintCallable)
+	void PhysPitchInput(float magnitude);
+	UFUNCTION(BlueprintCallable)
+	void PhysYawInput(float magnitude);
+	UFUNCTION(BlueprintCallable)
+	void PhysRollInput(float magnitude);
 	UPROPERTY(BlueprintReadWrite,EditAnywhere)
 	float fuel = 100;
 	UPROPERTY(BlueprintReadWrite,EditAnywhere)
 	float fuelConsumptionRate = 1;
 	UPROPERTY(BlueprintReadWrite,EditAnywhere)
 	bool damped = true;
+	bool gravity = false;
+	UPROPERTY(BlueprintReadWrite,EditAnywhere)
+	FVector LeftHandLocation;
+	UPROPERTY(BlueprintReadWrite,EditAnywhere)
+	float LeftHandLocationAlpha;
+	UPROPERTY(BlueprintReadWrite,EditAnywhere)
+	FVector RightHandLocation;
+	UPROPERTY(BlueprintReadWrite,EditAnywhere)
+	float RightHandLocationAlpha;
+	UPROPERTY(BlueprintReadWrite,EditAnywhere)
+	bool ShouldUseIk;
+	UPROPERTY(BlueprintReadWrite,EditAnywhere)
+	bool PlayingAnim;
+	UPROPERTY(BlueprintReadWrite,EditAnywhere)
+	float RotationSpeed = 1;
+	UFUNCTION(BlueprintCallable)
+	void RotateTo(FRotator Rot);
 private:
 	FVector physvelocity;
 	FVector physacceleration;
@@ -59,8 +88,12 @@ private:
 	TArray<impulse_t> imps;
 	void PhysicsMovementHandling(float DeltaTime);
 	void DirectedMovementHandling(float DeltaTime);
+	void RotationHandling(float DeltaTime);
 	FVector MoveToLocation;
 	FVector MoveToStart;
 	bool ShouldMoveTo;
 	void JetpackAccelerationCallback(FVector deltav);
+	bool ShouldHalt = false;
+	bool ShouldRotateTo;
+	FRotator TargetRotation;
 };
