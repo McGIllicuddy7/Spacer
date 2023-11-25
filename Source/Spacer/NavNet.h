@@ -10,7 +10,7 @@ struct Node_t{
 	int NumNeighbors;
 	FVector Location;
 };
-UCLASS()
+UCLASS(Blueprintable)
 class SPACER_API ANavNet : public AActor
 {
 	GENERATED_BODY()
@@ -40,4 +40,8 @@ public:
 private:
 	TArray<bool> GenerateVoxelGrid();
 	bool BoxTrace(FVector Location, float sidelength);
+	void RecalculateNodeVisibilities(TArray<bool> &Voxels, TArray<bool> &VisibleLocations)
+	int Xex;
+	int Yex;
+	int Zex;
 };

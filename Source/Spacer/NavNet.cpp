@@ -16,6 +16,7 @@ ANavNet::ANavNet()
 void ANavNet::BeginPlay()
 {
 	Super::BeginPlay();
+	RegenerateNet();
 	
 }
 
@@ -31,14 +32,35 @@ bool ANavNet::BoxTrace(FVector Location, float sidelength){
 }
 TArray<bool> ANavNet::GenerateVoxelGrid(){
 	TArray<bool> out;
+	Xex = ceil(Bounds.X/VoxelSize);
+	Yex = ceil(Bounds.Y/VoxelSize);
+	Zex = ceil(Bounds.Z/VoxelSize);
+	for(int z = 0; z<Zex; z++){
+		for(int y =0; y<Yex; y++){
+			for(int x =0; x<Xex; x++){
+				FVector loc = {(float)x,(float)y,(float)z};
+				loc *= VoxelSize;
+				loc+= GetActorLocation();
+				out.Add(BoxTrace(loc, VoxelSize));
+			}
+		}
+	}
 	return out;
 
 }
 TArray<FVector> ANavNet::GetNodeLocations(){
 		return {};
 }
+void ANavNet::RecalculateNodeVisibilities(TArray<bool> &Voxels, TArray<bool> &VisibleLocations){
+
+}
 void ANavNet::RegenerateNet(){
 	TArray<bool> Voxels = GenerateVoxelGrid();
+	TArray<bool> VisibleLocations;
+	for(int i = 0; i<Voxels.Num(); i++){
+		VisibleLocations.Add(false);
+	}
+
 }
 TArray<FVector> ANavNet::Pathfind(FVector Start, FVector End){
 	return {};
