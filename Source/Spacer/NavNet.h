@@ -5,9 +5,12 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "NavNet.generated.h"
-struct Node_t{
-	Node_t * Neighbors[16];
-	int NumNeighbors;
+USTRUCT()
+struct FNode_t{
+	GENERATED_BODY()
+	UPROPERTY()
+	TArray<FNode_t *> Neighbors;
+	UPROPERTY()
 	FVector Location;
 };
 UCLASS(Blueprintable)
@@ -26,9 +29,8 @@ protected:
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
-	Node_t nodes[1024];
-	UPROPERTY(BlueprintReadWrite,EditAnywhere)
-	int num_nodes;
+	UPROPERTY()
+	TArray<FNode_t> nodes;
 	UFUNCTION(BlueprintCallable)
 	TArray<FVector> GetNodeLocations();
 	UFUNCTION(BlueprintCallable)
@@ -53,7 +55,7 @@ private:
 	int Yex;
 	int Zex;
 	bool GridLocationVisibleFromGridLocation(FIntVector location1, FIntVector location2);
-	bool RequestNewNode(Node_t * parent, FVector Location, TArray<bool> &Voxels,TArray<bool> &VisibleLocations, int recursion_depth);
+	bool RequestNewNode(FVector Location, TArray<bool> &Voxels,TArray<bool> &VisibleLocations);
 	int new_visible_from_adding(FIntVector location, TArray<bool> VisibleLocations, TArray<bool> Voxels);
 	bool non_visible_locations(TArray<bool> Voxels, TArray<bool> Visible);
 };

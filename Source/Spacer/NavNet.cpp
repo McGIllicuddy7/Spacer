@@ -64,18 +64,11 @@ TArray<FVector> ANavNet::GetNodeLocations(){
 		}
 		return out;
 }
-bool ANavNet::RequestNewNode(Node_t * parent, FVector Location, TArray<bool> &Voxels, TArray<bool> &VisibleLocations, int recursion_depth){
-	if(num_nodes>64){
-		return false;
-	}
-	Node_t n;
+bool ANavNet::RequestNewNode(FVector Location, TArray<bool> &Voxels, TArray<bool> &VisibleLocations){
+	FNode_t n;
 	n.Location = Location;
-	n.NumNeighbors = 0;
-	for(int i = 0; i<16; i++){
-		n.Neighbors[i] = 0;
-	}
-	nodes[num_nodes] = n;
-	num_nodes ++;
+	n.Neighbors.Empty();
+	nodes.Add(n);
 	FIntVector loc;
 	FVector loctmp = (Location-GetActorLocation())/VoxelSize;
 	loc.X = loctmp.X;
@@ -119,17 +112,16 @@ bool ANavNet::non_visible_locations(TArray<bool> Voxels, TArray<bool> Visible){
 	return false;
 }
 void ANavNet::RegenerateNet(){
-	num_nodes = 0;
 	TArray<bool> Voxels = GenerateVoxelGrid();
 	TArray<bool> VisibleLocations;
 	for(int i = 0; i<Voxels.Num(); i++){
 		VisibleLocations.Add(false);
 	}
-	memset(nodes, 0, 1024*sizeof(Node_t));
 	if(!Use_Node_Start){
 		Node_Start = GetActorLocation();
 	}
-	RequestNewNode(NULL,Node_Start, Voxels, VisibleLocations, 0);
+	nodes.Empty();
+	RequestNewNode(Node_Start, Voxels, VisibleLocations);
 	while(true){
 		FIntVector MaxLocation = {-1,-1,-1};
 		int MaxVisible = -1;
@@ -152,7 +144,7 @@ void ANavNet::RegenerateNet(){
 		FVector loc = {(float)MaxLocation.X, (float)MaxLocation.Y, (float)MaxLocation.Z};
 		loc*= VoxelSize;
 		loc+=GetActorLocation();
-		bool s = RequestNewNode(NULL,loc, Voxels, VisibleLocations, 0);
+		bool s = RequestNewNode(loc, Voxels, VisibleLocations);
 		if(!s){
 			break;
 		}
@@ -191,8 +183,8 @@ bool ANavNet::GridLocationVisibleFromGridLocation(FIntVector loc1, FIntVector lo
 		GetWorld(),
 		ConvertIndicesToLocation(loc1.X, loc1.Y, loc1.Z), 
 		ConvertIndicesToLocation(loc2.X, loc2.Y, loc2.Z),
-		30,
-		30,
+		90,
+		40,
 		ETraceTypeQuery::TraceTypeQuery1,
 		false,
 		ignored,
