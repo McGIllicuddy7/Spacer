@@ -26,7 +26,9 @@ protected:
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
-	TArray<Node_t> nodes;
+	Node_t nodes[1024];
+	UPROPERTY(BlueprintReadWrite,EditAnywhere)
+	int num_nodes;
 	UFUNCTION(BlueprintCallable)
 	TArray<FVector> GetNodeLocations();
 	UFUNCTION(BlueprintCallable)
@@ -35,13 +37,23 @@ public:
 	TArray<FVector> Pathfind(FVector Start, FVector End);
 	UPROPERTY(BlueprintReadWrite,EditAnywhere)
 	FVector Bounds = {1000,1000,1000};
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	FVector Node_Start = {0,0,0};
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	bool Use_Node_Start = false;
 	UPROPERTY(BlueprintReadWrite,EditAnywhere)
 	float VoxelSize = 100;
 private:
 	TArray<bool> GenerateVoxelGrid();
-	bool BoxTrace(FVector Location, float sidelength);
-	void RecalculateNodeVisibilities(TArray<bool> &Voxels, TArray<bool> &VisibleLocations)
+	bool BoxTrace(FVector Location, float sidelength); 
+	FVector ConvertIndicesToLocation(int x, int y, int z);
+	FIntVector ConvertLocationToIndices(FVector Location);
+	bool CheckLocationValid(int x, int y, int z);
 	int Xex;
 	int Yex;
 	int Zex;
+	bool GridLocationVisibleFromGridLocation(FIntVector location1, FIntVector location2);
+	bool RequestNewNode(Node_t * parent, FVector Location, TArray<bool> &Voxels,TArray<bool> &VisibleLocations, int recursion_depth);
+	int new_visible_from_adding(FIntVector location, TArray<bool> VisibleLocations, TArray<bool> Voxels);
+	bool non_visible_locations(TArray<bool> Voxels, TArray<bool> Visible);
 };
