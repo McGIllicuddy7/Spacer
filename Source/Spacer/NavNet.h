@@ -5,12 +5,13 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "NavNet.generated.h"
-USTRUCT()
+USTRUCT(Blueprintable)
 struct FNode_t{
 	GENERATED_BODY()
 	UPROPERTY()
-	TArray<FNode_t *> Neighbors;
-	UPROPERTY()
+	//stores the neighbors as indices	
+	TArray<int> Neighbors;
+	UPROPERTY(BlueprintReadWrite,EditAnywhere)
 	FVector Location;
 };
 UCLASS(Blueprintable)
@@ -29,7 +30,7 @@ protected:
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	TArray<FNode_t> nodes;
 	UFUNCTION(BlueprintCallable)
 	TArray<FVector> GetNodeLocations();
@@ -44,7 +45,7 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	bool Use_Node_Start = false;
 	UPROPERTY(BlueprintReadWrite,EditAnywhere)
-	float VoxelSize = 100;
+	float VoxelSize = 200;
 private:
 	TArray<bool> GenerateVoxelGrid();
 	bool BoxTrace(FVector Location, float sidelength); 
@@ -58,4 +59,8 @@ private:
 	bool RequestNewNode(FVector Location, TArray<bool> &Voxels,TArray<bool> &VisibleLocations);
 	int new_visible_from_adding(FIntVector location, TArray<bool> VisibleLocations, TArray<bool> Voxels);
 	bool non_visible_locations(TArray<bool> Voxels, TArray<bool> Visible);
+	int NearestNode(FVector Location);
+public:
+	bool CapsuleTrace(FVector Start, FVector End);
+	double Infinity();
 };

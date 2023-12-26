@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "NavNet.h"
 #include "Spaceman.generated.h"
 struct impulse_t{
 	FVector Force;
@@ -38,12 +39,16 @@ public:
 	FVector GetPhysAcceleration();
 	UFUNCTION(BlueprintCallable)
 	void MoveDirectlyToPoint(FVector location);
+	UFUNCTION(BlueprintImplementableEvent)
+	void FinishedMovingDirectlyCallback();
 	UFUNCTION(BlueprintCallable)
 	void CancelMovement();
+	UFUNCTION(BlueprintCallable)
+	void MoveTo(FVector Location);
 	UFUNCTION(BlueprintCallable,BlueprintPure)
 	bool IsMovingToLocation();
 	UFUNCTION(BlueprintImplementableEvent)
-	void FinishedMovingToLocation();
+	void FinishedMoving();
 	UPROPERTY(BlueprintReadWrite,EditAnywhere)
 	float JetpackAcceleration =1400;
 	UPROPERTY(BlueprintReadWrite,EditAnywhere)
@@ -81,6 +86,8 @@ public:
 	float RotationSpeed = 1;
 	UFUNCTION(BlueprintCallable)
 	void RotateTo(FRotator Rot);
+	UPROPERTY(BlueprintReadWrite,EditAnywhere)
+	ANavNet * NavMesh = NULL;
 private:
 	FVector physvelocity;
 	FVector physacceleration;
@@ -96,4 +103,8 @@ private:
 	bool ShouldHalt = false;
 	bool ShouldRotateTo;
 	FRotator TargetRotation;
+	bool moving_to_location;
+	int moving_index;
+	TArray<FVector> MoveLocations;
+	void FinishedMovingToLocation();
 };

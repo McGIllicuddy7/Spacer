@@ -59,7 +59,7 @@ TArray<bool> ANavNet::GenerateVoxelGrid(){
 }
 TArray<FVector> ANavNet::GetNodeLocations(){
 		TArray<FVector> out;
-		for(int i =0; i<num_nodes; i++){
+		for(int i =0; i<nodes.Num(); i++){
 			out.Add(nodes[i].Location);
 		}
 		return out;
@@ -122,7 +122,8 @@ void ANavNet::RegenerateNet(){
 	}
 	nodes.Empty();
 	RequestNewNode(Node_Start, Voxels, VisibleLocations);
-	while(true){
+	int fs = 0;
+	while(fs<5000){
 		FIntVector MaxLocation = {-1,-1,-1};
 		int MaxVisible = -1;
 		for(int z = 0; z<Zex; z++){
@@ -148,10 +149,73 @@ void ANavNet::RegenerateNet(){
 		if(!s){
 			break;
 		}
+		fs++;
 	}
-}
-TArray<FVector> ANavNet::Pathfind(FVector Start, FVector End){
-	return {};
+	int num = nodes.Num();
+	/*
+	for(int i =0; i<num-1; i++){	
+		for(int j =i; j<num-1; j++){
+			FIntVector l1 = ConvertLocationToIndices(nodes[i].Location);
+			FIntVector l2 = ConvertLocationToIndices(nodes[j].Location);
+			if(GridLocationVisibleFromGridLocation(l1,l2)){
+				for(int z= 0; z<Zex; z++){
+					for(int y =0; y<Yex; y++){
+						for(int x =0; x<Xex; x++){
+							if(Voxels[z*Yex*Xex+y*Xex+x]){
+								continue;
+							}
+							FIntVector l0 = {x,y,z};
+							bool v1 = !GridLocationVisibleFromGridLocation(l1,l0);
+							bool v2 = !GridLocationVisibleFromGridLocation(l2,l0);
+							if(v1 && v2){
+								FVector v0 = {(float)x,(float)y, (float)z};
+								v0*=VoxelSize;
+								v0+=GetActorLocation();
+								FNode_t n;
+								n.Location = v0;
+								n.Neighbors.Empty();
+								nodes.Add(n);
+								goto cont;
+							}
+						}
+					}
+				}
+			}
+cont: 
+		continue;
+		}
+	}
+	*/
+	for(int i = 0; i<nodes.Num()-1; i++){
+		for(int j =i+1; j<nodes.Num(); j++){
+			if(i != j){
+				if(!GridLocationVisibleFromGridLocation(ConvertLocationToIndices(nodes[i].Location), ConvertLocationToIndices(nodes[j].Location))){
+					nodes[i].Neighbors.Add(j);
+					nodes[j].Neighbors.Add(i);
+					/*
+					FHitResult hit;
+					TArray<AActor *> ignored;
+					UKismetSystemLibrary::CapsuleTraceSingle(
+							GetWorld(),
+							nodes[i].Location,
+							nodes[j].Location,
+							90,
+							40, 
+							ETraceTypeQuery::TraceTypeQuery1,
+							false,
+							ignored,
+							EDrawDebugTrace::ForDuration,
+							hit,
+							true,
+							(FLinearColor){1,0,0,0},
+							(FLinearColor){0,1,0,9},
+							128
+					);
+					*/
+				}
+			}
+		}
+	}
 }
 FVector ANavNet::ConvertIndicesToLocation(int x, int y, int z){
 	FVector loc = {(float)x,(float)y, (float)z};
@@ -162,9 +226,7 @@ FVector ANavNet::ConvertIndicesToLocation(int x, int y, int z){
 }
 FIntVector ANavNet::ConvertLocationToIndices(FVector Location){
 	FVector locn = Location-GetActorLocation();
-	locn.X /= Bounds.X;
-	locn.Y /= Bounds.Y;
-	locn.Z /= Bounds.Z;
+	locn/= VoxelSize;
 	return {(int)floor(locn.X), (int)floor(locn.Y), (int)floor(locn.Z)};
 }
 bool ANavNet::CheckLocationValid(int x, int y, int z){
@@ -182,7 +244,7 @@ bool ANavNet::GridLocationVisibleFromGridLocation(FIntVector loc1, FIntVector lo
 	return UKismetSystemLibrary::CapsuleTraceSingle(
 		GetWorld(),
 		ConvertIndicesToLocation(loc1.X, loc1.Y, loc1.Z), 
-		ConvertIndicesToLocation(loc2.X, loc2.Y, loc2.Z),
+		ConvertIndicesToLocation(loc2.X, loc2.Y, loc2.Z), 
 		90,
 		40,
 		ETraceTypeQuery::TraceTypeQuery1,
@@ -195,4 +257,97 @@ bool ANavNet::GridLocationVisibleFromGridLocation(FIntVector loc1, FIntVector lo
 		(FLinearColor){0,1,0,9},
 		128
 	);	
+}
+double ANavNet::Infinity(){
+	return 1000000000;
+}
+int ANavNet::NearestNode(FVector Location){
+	int nearest = 0;
+	double NearestDist = Infinity();
+	for(int i =0; i<nodes.Num(); i++){
+		double l = FVector::Distance(Location, nodes[i].Location)<NearestDist;
+		if(!CapsuleTrace(Location, nodes[i].Location)){
+				nearest = i;
+				NearestDist = l;
+		}
+	}
+	return nearest;
+}
+bool ANavNet::CapsuleTrace(FVector Start, FVector End){
+	FHitResult hit;
+	TArray<AActor *> ignored = {};
+	return UKismetSystemLibrary::CapsuleTraceSingle(
+		GetWorld(),
+		Start,
+		End,
+		40,
+		90,
+		ETraceTypeQuery::TraceTypeQuery1,
+		false,
+		ignored,
+		EDrawDebugTrace::None,
+		hit,
+		true,
+		(FLinearColor){1,0,0,0},
+		(FLinearColor){0,1,0,9},
+		128
+	);
+}
+struct AStar_Node_t{
+	int node_index;
+	TArray<int> edges;
+	TArray<double> distances;
+	double euc_distance;
+	double node_distance;
+	bool visited;
+};
+static void Pathfind_Iterate(TArray<AStar_Node_t> &nodes,int start, int end,double distance){
+	AStar_Node_t *node = &nodes[start];
+	node->node_distance = distance;
+	for(int i =0; i<node->edges.Num(); i++){
+		double dist = distance+ node->distances[i];
+		if(dist<nodes[node->edges[i]].euc_distance){
+			Pathfind_Iterate(nodes,node->edges[i],end, dist);
+		}
+	}
+}
+TArray<FVector> ANavNet::Pathfind(FVector Start, FVector End){
+	if(!CapsuleTrace(Start, End)){
+		return {End};
+	}
+	int start = NearestNode(Start);
+	int end = NearestNode(End);
+	TArray<AStar_Node_t> net = {};
+	for(int i =0; i<nodes.Num(); i++){
+		AStar_Node_t tmp;
+		tmp.node_index = i;
+		for(int j =0; j<nodes[i].Neighbors.Num(); j++){
+			tmp.edges.Add(nodes[i].Neighbors[j]);
+			tmp.distances.Add(FVector::Distance(nodes[i].Location, nodes[nodes[i].Neighbors[j]].Location));
+		}
+		tmp.euc_distance = FVector::Distance(nodes[i].Location, nodes[end].Location);
+		tmp.node_distance = Infinity();
+		net.Add(tmp);
+	}
+	Pathfind_Iterate(net, start, end,0);
+	int current = end;
+	TArray<FVector> tmp = {};
+	while(current != start){
+		tmp.Add(nodes[current].Location);
+		int min =0;
+		double min_dist = Infinity();
+		for(int i=0; i<net[current].edges.Num(); i++){
+			if(net[net[current].edges[i]].node_distance<min_dist){
+				min = net[current].edges[i];
+				min_dist = net[net[current].edges[i]].node_distance;
+			}
+		}
+		current = min;
+	}
+	TArray<FVector> out = {};
+	out.Add(nodes[start].Location);
+	for(int i =tmp.Num()-1; i>-1; i--){
+		out.Add(tmp[i]);
+	}
+	return out;
 }

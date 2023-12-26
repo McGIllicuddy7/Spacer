@@ -179,6 +179,14 @@ FVector ASpaceman::GetPhysAcceleration(){
 void ASpaceman::MoveDirectlyToPoint(FVector location){
 	ShouldMoveTo = true;
 	MoveToLocation = location;
+	if(NavMesh){
+		if(NavMesh->CapsuleTrace(GetActorLocation(),location)){
+			ShouldMoveTo = false;
+			MoveToLocation = {0,0,0};
+			FinishedMovingDirectlyCallback();
+			return;
+		}
+	}
 	MoveToStart = GetActorLocation();
 }
 
@@ -236,4 +244,28 @@ void ASpaceman::RotationHandling(float DeltaTime){
 void ASpaceman::RotateTo(FRotator Rot){
 	ShouldRotateTo = true;
 	TargetRotation = Rot;
+}	
+void ASpaceman::MoveTo(FVector Location){
+	if(!NavMesh){
+		return;
+	}
+	MoveLocations = NavMesh->Pathfind(GetActorLocation(), Location);
+	if(MoveLocations.Num()<1){
+		FinishedMovingToLocation();
+		return;
+	}
+	moving_to_location = true;
+	moving_index =0;
+	MoveDirectlyToPoint(MoveLocations[moving_index]);
+}
+void ASpaceman::FinishedMovingToLocation(){
+	moving_index++;
+	FinishedMovingDirectlyCallback();
+	if(moving_index>=MoveLocations.Num()){
+		moving_to_location = false;
+		moving_index = 0;
+		FinishedMoving();
+		return;
+	}
+	MoveDirectlyToPoint(MoveLocations[moving_index]);
 }
