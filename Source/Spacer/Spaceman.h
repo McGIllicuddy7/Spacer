@@ -10,6 +10,15 @@ struct impulse_t{
 	FVector Force;
 	double remaining_time;
 };
+UENUM(BlueprintType)
+enum hit_location_t{
+	Torso UMETA(DisplayName ="Torso"),
+	Head UMETA(DisplayName = "Head"),
+	Arm_Left UMETA(DisplayName = "Left Arm"),
+	Arm_Right UMETA(DisplayName = "Right Arm"),
+	Leg_Left UMETA(DisplayName = "Left Leg"),
+	Leg_Right UMETA(DisplayName = "Right Leg"),
+};
 UCLASS(Blueprintable)
 class SPACER_API ASpaceman : public ACharacter
 {
@@ -85,10 +94,29 @@ public:
 	UPROPERTY(BlueprintReadWrite,EditAnywhere)
 	float RotationSpeed = 1;
 	UFUNCTION(BlueprintCallable)
+	FVector GetMoveToLocation();
+	UFUNCTION(BlueprintCallable)
 	void RotateTo(FRotator Rot);
 	UPROPERTY(BlueprintReadWrite,EditAnywhere)
 	ANavNet * NavMesh = NULL;
+	UPROPERTY(BlueprintReadOnly)
+	int moving_index;
+	UPROPERTY(BlueprintReadOnly)
+	float torso_health;
+	UPROPERTY(BlueprintReadOnly)
+	float left_arm_health;
+	UPROPERTY(BlueprintReadOnly)
+	float right_arm_health;
+	UPROPERTY(BlueprintReadOnly)
+	float left_leg_health;
+	UPROPERTY(BlueprintReadOnly)
+	float right_leg_heatlh;
+	UFUNCTION(BlueprintImplementableEvent,BlueprintCallable)
+	void Death();
+	UFUNCTION(BlueprintCallable)
+	void TakeBodyDamage(hit_location_t hit_location, float damage);
 private:
+	int last_idx = -1;
 	FVector physvelocity;
 	FVector physacceleration;
 	double mass = 100;
@@ -104,7 +132,6 @@ private:
 	bool ShouldRotateTo;
 	FRotator TargetRotation;
 	bool moving_to_location;
-	int moving_index;
 	TArray<FVector> MoveLocations;
 	void FinishedMovingToLocation();
 };

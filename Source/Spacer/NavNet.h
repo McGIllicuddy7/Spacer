@@ -4,11 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Pathfinder.h"
 #include "NavNet.generated.h"
 USTRUCT(Blueprintable)
 struct FNode_t{
 	GENERATED_BODY()
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite,EditAnywhere)
 	//stores the neighbors as indices	
 	TArray<int> Neighbors;
 	UPROPERTY(BlueprintReadWrite,EditAnywhere)
@@ -36,6 +37,8 @@ public:
 	TArray<FVector> GetNodeLocations();
 	UFUNCTION(BlueprintCallable)
 	void RegenerateNet();
+	UFUNCTION(BlueprintCallable)
+	void GenerateNet(TArray<FVector> Locations);
 	UFUNCTION(BlueprintCallable)
 	TArray<FVector> Pathfind(FVector Start, FVector End);
 	UPROPERTY(BlueprintReadWrite,EditAnywhere)

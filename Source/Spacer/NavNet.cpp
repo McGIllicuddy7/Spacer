@@ -113,105 +113,63 @@ bool ANavNet::non_visible_locations(TArray<bool> Voxels, TArray<bool> Visible){
 }
 void ANavNet::RegenerateNet(){
 	TArray<bool> Voxels = GenerateVoxelGrid();
-	TArray<bool> VisibleLocations;
-	for(int i = 0; i<Voxels.Num(); i++){
-		VisibleLocations.Add(false);
+	TArray<int> Table = {};
+	for(int z =0; z<Zex; z++){
+		for(int y = 0; y<Yex;y++){
+			for(int x =0; x<Xex; x++){
+				int count = z*Yex*Xex+y*Xex+x;
+				if(!Voxels[count]){
+					FNode_t node;
+					node.Neighbors = {};
+					node.Location = ConvertIndicesToLocation(x,y,z);
+					Table.Add(nodes.Num());
+					nodes.Add(node);
+				}
+				else{
+					Table.Add(-1);
+				}
+			}
+		}
 	}
-	if(!Use_Node_Start){
-		Node_Start = GetActorLocation();
+	for(int i =0; i<nodes.Num(); i++){
+		for(int z =-1; z<2; z++){
+			for(int y =-1; y<2; y++){	
+				for(int x =-1; x<2; x++){
+					if(z == 0 && y == 0 && x == 0){
+						continue;
+					}
+					FIntVector indices = ConvertLocationToIndices(nodes[i].Location);
+					if((indices.X == 0 && x == -1 )||( indices.X >= Xex-1 && x == 1)){
+						continue;
+					}
+					if((indices.Y == 0 && y == -1 )|| (indices.Y >= Yex-1 && y == 1)){
+						continue;
+					}
+					if((indices.Z == 0 && z == -1 )|| (indices.Z >= Zex-1 && z == 1)){
+						continue;
+					}
+					FIntVector v = ConvertLocationToIndices(nodes[i].Location);
+					if(Voxels[(z+v.Z)*Yex*Xex+(y+v.Y)*Xex+(x+v.X)] && Table[(z+v.Z)*Yex*Xex+(y+v.Y)*Xex+(x+v.X)] != -1){
+						nodes[i].Neighbors.Add((Table[(z+v.Z)*Yex*Xex+(y+v.Y)*Xex+(x+v.X)]));
+					}
+				}
+			}
+		}
 	}
+}
+void ANavNet::GenerateNet(TArray<FVector> Locations){
 	nodes.Empty();
-	RequestNewNode(Node_Start, Voxels, VisibleLocations);
-	int fs = 0;
-	while(fs<5000){
-		FIntVector MaxLocation = {-1,-1,-1};
-		int MaxVisible = -1;
-		for(int z = 0; z<Zex; z++){
-			for(int y =0; y<Yex; y++){
-				for(int x =0; x<Xex; x++){
-					if(VisibleLocations[z*Yex*Xex+y*Yex+x]){
-						int max = new_visible_from_adding({x,y,z}, VisibleLocations, Voxels);
-						if(max>MaxVisible){
-							MaxLocation = {x,y,z};
-							MaxVisible = max;
-						}
-					}
-				}
-			}
-		}
-		if(MaxVisible == 0){
-			break;
-		}
-		FVector loc = {(float)MaxLocation.X, (float)MaxLocation.Y, (float)MaxLocation.Z};
-		loc*= VoxelSize;
-		loc+=GetActorLocation();
-		bool s = RequestNewNode(loc, Voxels, VisibleLocations);
-		if(!s){
-			break;
-		}
-		fs++;
+	for(int i =0; i<Locations.Num(); i++){
+		FNode_t node;
+		node.Location = Locations[i];
+		node.Neighbors = {};
+		nodes.Add(node);
 	}
-	int num = nodes.Num();
-	/*
-	for(int i =0; i<num-1; i++){	
-		for(int j =i; j<num-1; j++){
-			FIntVector l1 = ConvertLocationToIndices(nodes[i].Location);
-			FIntVector l2 = ConvertLocationToIndices(nodes[j].Location);
-			if(GridLocationVisibleFromGridLocation(l1,l2)){
-				for(int z= 0; z<Zex; z++){
-					for(int y =0; y<Yex; y++){
-						for(int x =0; x<Xex; x++){
-							if(Voxels[z*Yex*Xex+y*Xex+x]){
-								continue;
-							}
-							FIntVector l0 = {x,y,z};
-							bool v1 = !GridLocationVisibleFromGridLocation(l1,l0);
-							bool v2 = !GridLocationVisibleFromGridLocation(l2,l0);
-							if(v1 && v2){
-								FVector v0 = {(float)x,(float)y, (float)z};
-								v0*=VoxelSize;
-								v0+=GetActorLocation();
-								FNode_t n;
-								n.Location = v0;
-								n.Neighbors.Empty();
-								nodes.Add(n);
-								goto cont;
-							}
-						}
-					}
-				}
-			}
-cont: 
-		continue;
-		}
-	}
-	*/
-	for(int i = 0; i<nodes.Num()-1; i++){
-		for(int j =i+1; j<nodes.Num(); j++){
+	for(int i =0; i<nodes.Num(); i++){
+		for(int j =0; j<nodes.Num(); j++){
 			if(i != j){
-				if(!GridLocationVisibleFromGridLocation(ConvertLocationToIndices(nodes[i].Location), ConvertLocationToIndices(nodes[j].Location))){
+				if(!CapsuleTrace(nodes[i].Location, nodes[j].Location)){
 					nodes[i].Neighbors.Add(j);
-					nodes[j].Neighbors.Add(i);
-					/*
-					FHitResult hit;
-					TArray<AActor *> ignored;
-					UKismetSystemLibrary::CapsuleTraceSingle(
-							GetWorld(),
-							nodes[i].Location,
-							nodes[j].Location,
-							90,
-							40, 
-							ETraceTypeQuery::TraceTypeQuery1,
-							false,
-							ignored,
-							EDrawDebugTrace::ForDuration,
-							hit,
-							true,
-							(FLinearColor){1,0,0,0},
-							(FLinearColor){0,1,0,9},
-							128
-					);
-					*/
 				}
 			}
 		}
@@ -293,61 +251,32 @@ bool ANavNet::CapsuleTrace(FVector Start, FVector End){
 		128
 	);
 }
-struct AStar_Node_t{
-	int node_index;
-	TArray<int> edges;
-	TArray<double> distances;
-	double euc_distance;
-	double node_distance;
-	bool visited;
-};
-static void Pathfind_Iterate(TArray<AStar_Node_t> &nodes,int start, int end,double distance){
-	AStar_Node_t *node = &nodes[start];
-	node->node_distance = distance;
-	for(int i =0; i<node->edges.Num(); i++){
-		double dist = distance+ node->distances[i];
-		if(dist<nodes[node->edges[i]].euc_distance){
-			Pathfind_Iterate(nodes,node->edges[i],end, dist);
-		}
-	}
-}
 TArray<FVector> ANavNet::Pathfind(FVector Start, FVector End){
 	if(!CapsuleTrace(Start, End)){
 		return {End};
 	}
 	int start = NearestNode(Start);
 	int end = NearestNode(End);
-	TArray<AStar_Node_t> net = {};
+	TArray<AStarNode_t> net = {};
 	for(int i =0; i<nodes.Num(); i++){
-		AStar_Node_t tmp;
-		tmp.node_index = i;
+		AStarNode_t tmp;
 		for(int j =0; j<nodes[i].Neighbors.Num(); j++){
 			tmp.edges.Add(nodes[i].Neighbors[j]);
 			tmp.distances.Add(FVector::Distance(nodes[i].Location, nodes[nodes[i].Neighbors[j]].Location));
 		}
 		tmp.euc_distance = FVector::Distance(nodes[i].Location, nodes[end].Location);
-		tmp.node_distance = Infinity();
 		net.Add(tmp);
 	}
-	Pathfind_Iterate(net, start, end,0);
-	int current = end;
-	TArray<FVector> tmp = {};
-	while(current != start){
-		tmp.Add(nodes[current].Location);
-		int min =0;
-		double min_dist = Infinity();
-		for(int i=0; i<net[current].edges.Num(); i++){
-			if(net[net[current].edges[i]].node_distance<min_dist){
-				min = net[current].edges[i];
-				min_dist = net[net[current].edges[i]].node_distance;
-			}
-		}
-		current = min;
+	TArray<int> indices = UPathfinder::AStar(net,start,end);
+	if(indices.Num() == 0){
+		return {};
 	}
 	TArray<FVector> out = {};
 	out.Add(nodes[start].Location);
-	for(int i =tmp.Num()-1; i>-1; i--){
-		out.Add(tmp[i]);
+	for(int i = 0; i<indices.Num(); i++){
+		out.Add(nodes[indices[i]].Location);
 	}
-	return out;
+	out.Add(nodes[end].Location);
+	out.Add(End);
+	return out;	
 }

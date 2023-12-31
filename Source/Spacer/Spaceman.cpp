@@ -110,7 +110,6 @@ void ASpaceman::DirectedMovementHandling(float DeltaTime){
 				ShouldHalt = false;
 				FinishedMovingToLocation();
 			}
-
 		}
 		return;
 	}
@@ -141,7 +140,6 @@ void ASpaceman::DirectedMovementHandling(float DeltaTime){
 	else{
 		PhysMovementInput(dv,1);
 	}
-
 }
 void ASpaceman::JetpackMovementInput(FVector Direction,float magnitude){
 	this->AddPhysForce(Direction*magnitude*JetpackAcceleration*100);
@@ -259,13 +257,45 @@ void ASpaceman::MoveTo(FVector Location){
 	MoveDirectlyToPoint(MoveLocations[moving_index]);
 }
 void ASpaceman::FinishedMovingToLocation(){
-	moving_index++;
+	moving_index+=1;	
 	FinishedMovingDirectlyCallback();
 	if(moving_index>=MoveLocations.Num()){
 		moving_to_location = false;
 		moving_index = 0;
+		last_idx = -1;
 		FinishedMoving();
 		return;
 	}
 	MoveDirectlyToPoint(MoveLocations[moving_index]);
+}
+FVector ASpaceman::GetMoveToLocation(){
+	return this->MoveToLocation;
+}
+void ASpaceman::TakeBodyDamage(hit_location_t hit_location, float damage){
+	switch (hit_location)
+	{
+	case Torso:{
+		this->torso_health-=damage;
+	}
+	case Head:{
+		this->torso_health-=damage*3;
+	}
+	case Arm_Left:{
+		this->torso_health-=damage/4;
+	}
+	case Arm_Right:{
+		this->torso_health-=damage/4;
+	}
+	case Leg_Left:{
+		this->torso_health-=damage/4;
+	}
+	case Leg_Right:{
+		this->torso_health-=damage/4;
+	}
+	default:
+		break;
+	}
+	if(this->torso_health<=0){
+		Death();
+	}
 }
